@@ -4,7 +4,8 @@ import axios from 'axios';
 const InventoryContext = createContext();
 export const useInventory = () => useContext(InventoryContext);
 
-const API_URL = 'http://localhost:5000/api';
+// It will use your live URL in production, and localhost when you are coding
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export const InventoryProvider = ({ children }) => {
   const [categories, setCategories] = useState([]);

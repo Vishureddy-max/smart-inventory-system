@@ -12,16 +12,18 @@ const SetupAdmin = () => {
     e.preventDefault();
     setStatus('Creating...');
     
+    // 1. ADD THIS LINE: Define the dynamic URL
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
     try {
-      // Calls your MongoDB backend to securely create the admin
-      const res = await axios.post('http://localhost:5000/api/auth/register', {
+      // 2. UPDATE THIS LINE: Use the new API_URL variable instead of hardcoding localhost
+      const res = await axios.post(`${API_URL}/auth/register`, {
         username,
         password
       });
       
       setStatus('✅ ' + res.data.message + ' Redirecting to login...');
       
-      // Automatically send you to the login page after 2 seconds
       setTimeout(() => {
         navigate('/login');
       }, 2000);

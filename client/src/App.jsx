@@ -7,6 +7,7 @@ import Billing from './pages/Billing';
 import Reports from './pages/Reports';
 import Login from './pages/Login';
 import SetupAdmin from './pages/SetupAdmin';
+import Predictions from './pages/Predictions';
 import { InventoryProvider, useInventory } from './context/InventoryContext';
 
 // A simple wrapper to protect routes
@@ -28,6 +29,7 @@ function AppRoutes() {
         <Route path="categories" element={<Categories />} />
         <Route path="billing" element={<Billing />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="predictions" element={<Predictions />} />
       </Route>
     </Routes>
   );

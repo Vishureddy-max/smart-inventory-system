@@ -1,10 +1,14 @@
-import { Link, useLocation, Outlet } from 'react-router-dom';
+import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { 
-  ShoppingCart, LayoutDashboard, Package, FolderOpen, ReceiptText, BarChart3, User, LogOut
+  ShoppingCart, LayoutDashboard, Package, FolderOpen, 
+  ReceiptText, BarChart3, BrainCircuit, User, LogOut 
 } from 'lucide-react';
+import { useInventory } from '../context/InventoryContext'; // <-- Imported Context!
 
 const Layout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useInventory(); // <-- Grabbed the logout function
 
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -12,7 +16,14 @@ const Layout = () => {
     { name: 'Categories', path: '/categories', icon: FolderOpen },
     { name: 'Billing', path: '/billing', icon: ReceiptText },
     { name: 'Reports', path: '/reports', icon: BarChart3 },
+    { name: 'AI Insights', path: '/predictions', icon: BrainCircuit }
   ];
+
+  // --- LOGOUT LOGIC ---
+  const handleLogout = () => {
+    logout(); // Clears the authentication state
+    navigate('/login'); // Sends you back to the login screen
+  };
 
   return (
     <div className="flex h-screen w-full bg-gray-50 font-sans text-gray-900 overflow-hidden">
@@ -61,7 +72,11 @@ const Layout = () => {
               <User size={16} className="text-gray-500" />
               Admin
             </button>
-            <button className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors">
+            {/* --- WIRED UP LOGOUT BUTTON --- */}
+            <button 
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors"
+            >
               <LogOut size={16} />
               Logout
             </button>

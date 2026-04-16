@@ -3,7 +3,7 @@ import { Search, Plus, Minus, Trash2, ShoppingCart } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable'; // <-- We import it as a standalone function
-
+import { useBarcodeScanner } from '../hooks/useBarcodeScanner';
 const Billing = () => {
   const { products, addOrder } = useInventory(); // <-- Grab addOrder
   // State
@@ -17,7 +17,21 @@ const Billing = () => {
     const safeName = product?.name || '';
     return safeName.toLowerCase().includes(searchTerm.toLowerCase());
   });
-
+// --- INVISIBLE BARCODE SCANNER ---
+  useBarcodeScanner((scannedCode) => {
+    // For now, let's assume the barcode matches the product name perfectly (or add a 'barcode' field to your DB later)
+    const productToExpand = products.find(p => 
+      p.name.toLowerCase() === scannedCode.toLowerCase() || 
+      p.id === scannedCode
+    );
+    
+    if (productToExpand) {
+      addToCart(productToExpand);
+      // Optional: Play a "beep" sound here!
+    } else {
+      alert(`Product not found for barcode: ${scannedCode}`);
+    }
+  });
   // --- Cart Logic ---
   const addToCart = (product) => {
     setCart(prev => {
@@ -50,7 +64,7 @@ const Billing = () => {
   const total = Math.max(0, subtotal + gstAmount - discountAmount);
 
   // --- PDF GENERATION LOGIC ---
-  const handleGenerateBill = async () => { // <-- Make sure to add 'async' here!
+  const handleGenerateBill = async () => { 
     if (cart.length === 0) {
       alert("Cart is empty!");
       return;
@@ -59,7 +73,7 @@ const Billing = () => {
     // 1. Send the order to MongoDB
     const orderPayload = {
       items: cart.map(item => ({
-        productId: item.id, // Mongoose needs the original product _id
+        productId: item.id, 
         name: item.name,
         price: Number(item.price),
         quantity: item.quantity
@@ -73,82 +87,84 @@ const Billing = () => {
       paymentMode: paymentMode
     };
 
-    await addOrder(orderPayload); // Wait for the database to save it!
+    await addOrder(orderPayload);
 
-    // 2. Build the PDF
-    const doc = new jsPDF();
-    // ... rest of the existing PDF code stays exactly the same!
+    // 2. Build the PDF 
+    const receiptHeight = 110 + (cart.length * 8); 
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, receiptHeight] });
 
-    // 1. Company Header
-    doc.setFontSize(22);
-    doc.setTextColor(37, 99, 235); // Blue-600
-    doc.text("Smart Inventory Management", 14, 22);
-    
-    doc.setFontSize(16);
-    doc.setTextColor(55, 65, 81); // Gray-700
-    doc.text("& Billing System", 14, 30);
-
-    // 2. Invoice Details
-    doc.setFontSize(10);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Invoice No: INV-${Math.floor(100000 + Math.random() * 900000)}`, 140, 22);
-    doc.text(`Date: ${new Date().toLocaleDateString('en-IN')}`, 140, 28);
-    doc.text(`Time: ${new Date().toLocaleTimeString('en-IN')}`, 140, 34);
-    doc.text(`Payment Mode: ${paymentMode}`, 140, 40);
-
-    // 3. Table Headers & Data
-    const tableColumn = ["Item", "Category", "Price (Rs.)", "Qty", "Total (Rs.)"];
-    const tableRows = [];
-
-    cart.forEach(item => {
-      const itemTotal = Number(item.price) * item.quantity;
-      tableRows.push([
-        item.name,
-        item.category,
-        Number(item.price).toLocaleString('en-IN'),
-        item.quantity.toString(),
-        itemTotal.toLocaleString('en-IN')
-      ]);
-    });
-
-    // 4. Draw Table
-   // 4. Draw Table (Using the standalone function)
-    autoTable(doc, {
-      startY: 50,
-      head: [tableColumn],
-      body: tableRows,
-      theme: 'striped',
-      headStyles: { fillColor: [37, 99, 235] }, 
-      styles: { fontSize: 10 },
-      margin: { top: 10 }
-    });
-
-    // 5. Financial Summary
-    const finalY = doc.lastAutoTable.finalY + 10;
-    
-    doc.setFontSize(10);
-    doc.setTextColor(80, 80, 80);
-    doc.text(`Subtotal: Rs. ${subtotal.toLocaleString('en-IN')}`, 140, finalY);
-    doc.text(`GST (${gstPercent || 0}%): Rs. ${gstAmount.toLocaleString('en-IN')}`, 140, finalY + 8);
-    
-    doc.setTextColor(239, 68, 68); // Red text for discount
-    doc.text(`Discount (${discountPercent || 0}%): - Rs. ${discountAmount.toLocaleString('en-IN')}`, 140, finalY + 16);
-
-    doc.setFontSize(14);
-    doc.setTextColor(17, 24, 39); // Dark Gray
+    // --- HEADER ---
+    doc.setFontSize(12);
     doc.setFont(undefined, 'bold');
-    doc.text(`Grand Total: Rs. ${total.toLocaleString('en-IN')}`, 140, finalY + 28);
-
-    // 6. Footer
+    doc.text("TEAM 44 ATT", 40, 10, { align: 'center' }); 
+    
+    doc.setFontSize(9);
     doc.setFont(undefined, 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(150, 150, 150);
-    doc.text("Thank you for your business!", 105, 280, { align: 'center' });
+    doc.text("Smart Retail System", 40, 16, { align: 'center' });
+    doc.text("------------------------------------------------", 40, 20, { align: 'center' });
 
-    // 7. Trigger Download
-    doc.save(`Invoice_${Date.now()}.pdf`);
+    // --- INVOICE DETAILS ---
+    doc.text(`Invoice: INV-${Math.floor(100000 + Math.random() * 900000)}`, 5, 26);
+    doc.text(`Date: ${new Date().toLocaleDateString('en-IN')}  ${new Date().toLocaleTimeString('en-IN')}`, 5, 31);
+    doc.text(`Payment: ${paymentMode}`, 5, 36);
+    doc.text("------------------------------------------------", 40, 41, { align: 'center' });
 
-    // 8. Clear the cart after successful generation
+    // --- TABLE HEADERS ---
+    doc.setFont(undefined, 'bold');
+    doc.text("Item", 5, 46);
+    doc.text("Qty", 45, 46, { align: 'center' });
+    doc.text("Total", 75, 46, { align: 'right' }); // Anchored to right margin!
+    doc.setFont(undefined, 'normal');
+    doc.text("------------------------------------------------", 40, 50, { align: 'center' });
+
+    // --- TABLE ITEMS ---
+    let yPos = 56;
+    cart.forEach(item => {
+      const shortName = item.name.length > 20 ? item.name.substring(0, 20) + '...' : item.name;
+      const itemTotal = Number(item.price) * item.quantity;
+      
+      doc.text(shortName, 5, yPos);
+      doc.text(item.quantity.toString(), 45, yPos, { align: 'center' });
+      // GROWING LEFTWARDS:
+      doc.text(itemTotal.toLocaleString('en-IN'), 75, yPos, { align: 'right' });
+      yPos += 7;
+    });
+
+    // --- FINANCIAL SUMMARY ---
+    doc.text("------------------------------------------------", 40, yPos, { align: 'center' });
+    yPos += 7;
+    
+    doc.text(`Subtotal:`, 35, yPos); 
+    doc.text(`Rs. ${subtotal.toLocaleString('en-IN')}`, 75, yPos, { align: 'right' });
+    yPos += 6;
+    
+    doc.text(`GST (${gstPercent || 0}%):`, 35, yPos);
+    doc.text(`Rs. ${gstAmount.toLocaleString('en-IN')}`, 75, yPos, { align: 'right' });
+    yPos += 6;
+    
+    doc.setTextColor(239, 68, 68); 
+    doc.text(`Discount:`, 35, yPos);
+    doc.text(`- Rs. ${discountAmount.toLocaleString('en-IN')}`, 75, yPos, { align: 'right' });
+    
+    doc.setTextColor(0, 0, 0); 
+    yPos += 8;
+
+    // --- GRAND TOTAL ---
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text(`TOTAL:`, 35, yPos); 
+    // Anchored to the exact same 75mm safe-line, guaranteed to fit!
+    doc.text(`Rs. ${total.toLocaleString('en-IN')}`, 75, yPos, { align: 'right' });
+
+    // --- FOOTER ---
+    yPos += 12;
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.text("Thank you for your business!", 40, yPos, { align: 'center' });
+
+    // Trigger Download
+    doc.save(`Receipt_${Date.now()}.pdf`);
+
     setCart([]);
     setSearchTerm('');
   };
